@@ -1,0 +1,35 @@
+:root {
+  /* Color palette */
+  --color-bg-deep: #0d0f12;
+  --color-bg-surface: #161a20;
+  --color-bg-glass: rgba(22, 26, 32, 0.75);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-accent: #f59e0b;
+  --color-accent-dim: rgba(245, 158, 11, 0.15);
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-disabled: #475569;
+  --color-steel: #334155;
+
+  /* Typography */
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+}

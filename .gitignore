@@ -1,0 +1,18 @@
+node_modules
+dist
+.env
+.env.local
+.DS_Store
+Thumbs.db
+*.local
+
+# Editor
+.vscode/
+
+# Vercel
+.vercel
+
+# Internal spec docs and build log — not meant for the repo
+BRIEF.md
+DESIGN.md
+PROGRESS.txt
