@@ -1,6 +1,6 @@
 import { googleLogoSvg } from '../components/googleIcon.js';
 import { icon } from '../components/icon.js';
-import { navigate } from '../router.js';
+import { signIn, subscribe } from '../services/authStore.js';
 
 export function renderLogin(container) {
   container.classList.add('bg-texture');
@@ -35,7 +35,7 @@ export function renderLogin(container) {
       <div class="bottom-action">
         <button id="google-signin-btn" class="btn-primary" style="display:flex; align-items:center; justify-content:center; gap: var(--space-sm);">
           ${googleLogoSvg}
-          <span>Sign in with Google</span>
+          <span id="google-signin-label">Sign in with Google</span>
         </button>
         <p class="text-secondary" style="font-size: var(--text-xs); text-align:center; margin-top:4px;">
           Restricted to @acmeok.com accounts
@@ -45,12 +45,29 @@ export function renderLogin(container) {
   `;
 
   const btn = container.querySelector('#google-signin-btn');
+  const label = container.querySelector('#google-signin-label');
   const errorBox = container.querySelector('#login-error');
+  const errorText = container.querySelector('#login-error-text');
 
   btn.addEventListener('click', () => {
-    // Firebase Google Sign-In wiring happens in a later step.
-    // Placeholder navigation so the flow is demonstrable during UI build-out.
     errorBox.style.display = 'none';
-    navigate('/home');
+    signIn();
   });
+
+  const unsubscribe = subscribe((state) => {
+    const busy = state.status === 'authenticating';
+    btn.disabled = busy;
+    label.textContent = busy ? 'Signing in…' : 'Sign in with Google';
+
+    if (state.error) {
+      errorText.textContent = state.error;
+      errorBox.style.display = 'flex';
+    } else {
+      errorBox.style.display = 'none';
+    }
+    // Navigation on success is handled by the router's auth guard, which
+    // re-renders automatically once authStore flips to 'authenticated'.
+  });
+
+  return unsubscribe;
 }

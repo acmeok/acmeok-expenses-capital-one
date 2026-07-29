@@ -1,5 +1,5 @@
 import { icon } from '../components/icon.js';
-import { navigate } from '../router.js';
+import { getState, signOutUser } from '../services/authStore.js';
 import { MOCK_USER, MOCK_HISTORY } from '../utils/mockData.js';
 
 function formatAmount(amount) {
@@ -26,7 +26,8 @@ function historyItem(entry) {
 }
 
 export function renderHome(container) {
-  const initials = MOCK_USER.name
+  const user = getState().profile || MOCK_USER;
+  const initials = user.name
     .split(' ')
     .map((p) => p[0])
     .join('')
@@ -55,7 +56,7 @@ export function renderHome(container) {
     </div>
 
     <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-lg);">
-      Signed in as: ${MOCK_USER.name}
+      Signed in as: ${user.name}
     </p>
 
     <h2 style="font-size: var(--text-lg); margin-bottom: var(--space-md);">Recent Submissions</h2>
@@ -66,6 +67,6 @@ export function renderHome(container) {
   `;
 
   container.querySelector('#signout-btn').addEventListener('click', () => {
-    navigate('/login');
+    signOutUser();
   });
 }
