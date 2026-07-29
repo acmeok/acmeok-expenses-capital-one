@@ -1,7 +1,7 @@
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, googleProvider } from './firebase.js';
 import { verifyLogin, saveFcmToken } from './n8n.js';
-import { requestFcmToken } from './fcm.js';
+import { requestFcmToken, listenForForegroundMessages } from './fcm.js';
 
 /* Matches the dashboard app's proven AuthContext pattern exactly:
    signInWithPopup, then onAuthStateChanged drives verification against
@@ -57,12 +57,24 @@ export async function getToken() {
   return auth.currentUser.getIdToken();
 }
 
+const FCM_TOKEN_CACHE_KEY = 'expense_app_last_saved_fcm_token';
+
 async function registerForPushNotifications(profile) {
   setState({ fcmStatus: 'registering' });
   try {
     const fcmToken = await requestFcmToken();
+    listenForForegroundMessages();
+
+    // Only hit our backend when the token actually changed — per BRIEF,
+    // every app load should check the token, not blindly resave it.
+    if (localStorage.getItem(FCM_TOKEN_CACHE_KEY) === fcmToken) {
+      setState({ fcmStatus: 'granted' });
+      return;
+    }
+
     const idToken = await auth.currentUser.getIdToken();
     await saveFcmToken(idToken, { name: profile.name, fcmToken });
+    localStorage.setItem(FCM_TOKEN_CACHE_KEY, fcmToken);
     setState({ fcmStatus: 'granted' });
   } catch (err) {
     const known = ['denied', 'unsupported'].includes(err.message);
