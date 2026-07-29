@@ -31,9 +31,17 @@ export function getState() {
   return state;
 }
 
-export function signIn() {
+export async function signIn() {
   setState({ status: 'authenticating', profile: null, error: null });
-  return signInWithRedirect(auth, googleProvider);
+  try {
+    await signInWithRedirect(auth, googleProvider);
+  } catch (err) {
+    setState({
+      status: 'signedOut',
+      profile: null,
+      error: 'Sign-in failed. Please try again.',
+    });
+  }
 }
 
 export function signOutUser() {
