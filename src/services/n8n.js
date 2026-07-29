@@ -44,4 +44,12 @@ export function verifyLogin(idToken) {
   return callWebhook('/webhook/expense-verify-login', { method: 'POST', idToken });
 }
 
+export function saveFcmToken(idToken, { name, fcmToken }) {
+  return callWebhook('/webhook/expense-save-fcm-token', {
+    method: 'POST',
+    idToken,
+    body: { name, fcmToken },
+  });
+}
+
 export { callWebhook, ApiError };

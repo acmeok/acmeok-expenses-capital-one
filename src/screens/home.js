@@ -1,5 +1,5 @@
 import { icon } from '../components/icon.js';
-import { getState, signOutUser } from '../services/authStore.js';
+import { getState, signOutUser, subscribe } from '../services/authStore.js';
 import { MOCK_USER, MOCK_HISTORY } from '../utils/mockData.js';
 
 function formatAmount(amount) {
@@ -24,6 +24,13 @@ function historyItem(entry) {
     </div>
   `;
 }
+
+const FCM_WARNING_MESSAGES = {
+  denied:
+    'Push notifications are required for this app to work. Enable notifications for this site in your browser settings, then reload the page.',
+  unsupported: 'This browser does not support push notifications. Use Chrome on Android for the full experience.',
+  error: 'Could not set up push notifications. Reload the page to try again.',
+};
 
 export function renderHome(container) {
   const user = getState().profile || MOCK_USER;
@@ -55,9 +62,11 @@ export function renderHome(container) {
       " aria-label="Sign out">${initials}</button>
     </div>
 
-    <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-lg);">
+    <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-md);">
       Signed in as: ${user.name}
     </p>
+
+    <div id="fcm-warning" style="display:none;"></div>
 
     <h2 style="font-size: var(--text-lg); margin-bottom: var(--space-md);">Recent Submissions</h2>
 
@@ -69,4 +78,29 @@ export function renderHome(container) {
   container.querySelector('#signout-btn').addEventListener('click', () => {
     signOutUser();
   });
+
+  const warningEl = container.querySelector('#fcm-warning');
+
+  function renderFcmWarning(fcmStatus) {
+    const message = FCM_WARNING_MESSAGES[fcmStatus];
+    if (!message) {
+      warningEl.style.display = 'none';
+      return;
+    }
+    warningEl.style.display = 'block';
+    warningEl.innerHTML = `
+      <div class="glass-card" style="
+        display:flex; align-items:flex-start; gap: var(--space-sm);
+        padding: var(--space-md); margin-bottom: var(--space-md);
+        border-color: rgba(245,158,11,0.35);
+      ">
+        <span style="flex-shrink:0; margin-top:2px; color: var(--color-accent);">${icon('alertCircle', { size: 18 })}</span>
+        <span style="font-size: var(--text-sm);">${message}</span>
+      </div>
+    `;
+  }
+
+  const unsubscribe = subscribe((state) => renderFcmWarning(state.fcmStatus));
+
+  return unsubscribe;
 }

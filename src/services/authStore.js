@@ -1,6 +1,7 @@
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, googleProvider } from './firebase.js';
-import { verifyLogin } from './n8n.js';
+import { verifyLogin, saveFcmToken } from './n8n.js';
+import { requestFcmToken } from './fcm.js';
 
 /* Matches the dashboard app's proven AuthContext pattern exactly:
    signInWithPopup, then onAuthStateChanged drives verification against
@@ -9,7 +10,7 @@ import { verifyLogin } from './n8n.js';
    account chooser popup) once its domain was added to Firebase's
    Authorized domains list — this app's domain needs that same step. */
 
-let state = { status: 'loading', profile: null, error: null };
+let state = { status: 'loading', profile: null, error: null, fcmStatus: 'idle' };
 const listeners = new Set();
 
 function setState(partial) {
@@ -56,6 +57,19 @@ export async function getToken() {
   return auth.currentUser.getIdToken();
 }
 
+async function registerForPushNotifications(profile) {
+  setState({ fcmStatus: 'registering' });
+  try {
+    const fcmToken = await requestFcmToken();
+    const idToken = await auth.currentUser.getIdToken();
+    await saveFcmToken(idToken, { name: profile.name, fcmToken });
+    setState({ fcmStatus: 'granted' });
+  } catch (err) {
+    const known = ['denied', 'unsupported'].includes(err.message);
+    setState({ fcmStatus: known ? err.message : 'error' });
+  }
+}
+
 let pendingError = null;
 
 onAuthStateChanged(auth, async (firebaseUser) => {
@@ -71,6 +85,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
     const idToken = await firebaseUser.getIdToken();
     const result = await verifyLogin(idToken);
     setState({ status: 'authenticated', profile: result, error: null });
+    registerForPushNotifications(result);
   } catch (err) {
     pendingError =
       err.status === 403 || err.status === 401
