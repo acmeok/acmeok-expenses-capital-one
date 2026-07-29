@@ -1,17 +1,13 @@
-import { signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, googleProvider } from './firebase.js';
 import { verifyLogin } from './n8n.js';
 
-/* Uses signInWithRedirect, not signInWithPopup. The voice app went through
-   popup -> redirect -> back to popup -> this exact combo before landing
-   here (see commit "Fix sign-in: use redirect with correct error handling
-   for mobile"): plain popup flakes on desktop (Vercel's default
-   Cross-Origin-Opener-Policy headers break the popup-to-opener handshake
-   Firebase relies on) and fails outright on mobile/installed PWAs where
-   popups are unreliable. getRedirectResult picks up the result (and any
-   error) after the browser navigates back from Google. onAuthStateChanged
-   then drives verification against the backend, signing back out on any
-   verification failure, same as the dashboard app's AuthContext. */
+/* Matches the dashboard app's proven AuthContext pattern exactly:
+   signInWithPopup, then onAuthStateChanged drives verification against
+   n8n, signing back out on any verification failure. Confirmed working in
+   production for the dashboard (same Firebase project, same google
+   account chooser popup) once its domain was added to Firebase's
+   Authorized domains list — this app's domain needs that same step. */
 
 let state = { status: 'loading', profile: null, error: null };
 const listeners = new Set();
@@ -31,16 +27,23 @@ export function getState() {
   return state;
 }
 
+function friendlyPopupError(err) {
+  if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+    return null; // user just backed out, not a real error
+  }
+  if (err.code === 'auth/popup-blocked') {
+    return 'Your browser blocked the sign-in popup. Allow popups for this site and try again.';
+  }
+  return 'Sign-in failed. Please try again.';
+}
+
 export async function signIn() {
   setState({ status: 'authenticating', profile: null, error: null });
   try {
-    await signInWithRedirect(auth, googleProvider);
+    await signInWithPopup(auth, googleProvider);
+    // onAuthStateChanged below takes over from here.
   } catch (err) {
-    setState({
-      status: 'signedOut',
-      profile: null,
-      error: 'Sign-in failed. Please try again.',
-    });
+    setState({ status: 'signedOut', profile: null, error: friendlyPopupError(err) });
   }
 }
 
@@ -54,14 +57,6 @@ export async function getToken() {
 }
 
 let pendingError = null;
-
-getRedirectResult(auth).catch((err) => {
-  // 'auth/no-auth-event' just means the page loaded normally, with no
-  // pending redirect to resolve — that's the common case, not an error.
-  if (err.code && err.code !== 'auth/no-auth-event') {
-    pendingError = 'Sign-in failed. Please try again.';
-  }
-});
 
 onAuthStateChanged(auth, async (firebaseUser) => {
   if (!firebaseUser) {
