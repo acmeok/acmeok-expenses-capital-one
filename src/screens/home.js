@@ -1,6 +1,7 @@
 import { icon } from '../components/icon.js';
-import { getState, signOutUser, subscribe } from '../services/authStore.js';
-import { MOCK_USER, MOCK_HISTORY } from '../utils/mockData.js';
+import { getState, signOutUser, subscribe, getToken } from '../services/authStore.js';
+import { getHistory } from '../services/n8n.js';
+import { MOCK_USER } from '../utils/mockData.js';
 
 function formatAmount(amount) {
   return `$${amount.toFixed(2)}`;
@@ -40,16 +41,6 @@ export function renderHome(container) {
     .join('')
     .toUpperCase();
 
-  const listHtml = MOCK_HISTORY.length
-    ? MOCK_HISTORY.map(historyItem).join('')
-    : `
-      <div class="glass-card" style="padding: var(--space-lg); text-align:center;">
-        <p class="text-secondary" style="font-size: var(--text-sm);">
-          No expenses submitted yet. You will be notified when a card transaction is detected.
-        </p>
-      </div>
-    `;
-
   container.innerHTML = `
     <div style="display:flex; align-items:center; justify-content:space-between; padding: var(--space-lg) 0 var(--space-md);">
       <h1 style="font-size: var(--text-xl);">Acme Expenses</h1>
@@ -70,8 +61,8 @@ export function renderHome(container) {
 
     <h2 style="font-size: var(--text-lg); margin-bottom: var(--space-md);">Recent Submissions</h2>
 
-    <div style="display:flex; flex-direction:column; gap: var(--space-md); flex:1; overflow-y:auto; padding-bottom: var(--space-lg);">
-      ${listHtml}
+    <div id="history-list" style="display:flex; flex-direction:column; gap: var(--space-md); flex:1; overflow-y:auto; padding-bottom: var(--space-lg);">
+      <span class="text-secondary" style="font-size: var(--text-sm);">Loading…</span>
     </div>
   `;
 
@@ -101,6 +92,36 @@ export function renderHome(container) {
   }
 
   const unsubscribe = subscribe((state) => renderFcmWarning(state.fcmStatus));
+
+  const historyListEl = container.querySelector('#history-list');
+
+  async function loadHistory() {
+    try {
+      const idToken = await getToken();
+      const result = await getHistory(idToken);
+      const history = result.history || [];
+
+      historyListEl.innerHTML = history.length
+        ? history.map(historyItem).join('')
+        : `
+          <div class="glass-card" style="padding: var(--space-lg); text-align:center;">
+            <p class="text-secondary" style="font-size: var(--text-sm);">
+              No expenses submitted yet. You will be notified when a card transaction is detected.
+            </p>
+          </div>
+        `;
+    } catch (err) {
+      historyListEl.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; gap: var(--space-md); text-align: center; padding: var(--space-lg);">
+          <span style="color: var(--color-danger); font-size: var(--text-sm);">${err.message || 'Could not load your submission history.'}</span>
+          <button id="retry-history" class="btn-secondary" style="width: auto; padding: 0 var(--space-lg);">Try Again</button>
+        </div>
+      `;
+      container.querySelector('#retry-history').addEventListener('click', loadHistory);
+    }
+  }
+
+  loadHistory();
 
   return unsubscribe;
 }
