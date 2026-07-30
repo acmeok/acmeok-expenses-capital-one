@@ -52,4 +52,12 @@ export function saveFcmToken(idToken, { name, fcmToken }) {
   });
 }
 
+export function getTransaction(idToken, transactionId) {
+  return callWebhook(`/webhook/expense-get-transaction?txn=${encodeURIComponent(transactionId)}`, { idToken });
+}
+
+export function getJobs(idToken) {
+  return callWebhook('/webhook/expense-get-jobs', { idToken });
+}
+
 export { callWebhook, ApiError };

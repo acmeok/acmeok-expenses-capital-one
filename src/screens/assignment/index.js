@@ -1,8 +1,9 @@
-import { MOCK_TRANSACTION } from '../../utils/mockData.js';
 import { renderJobStep } from './job.js';
 import { renderDescriptionStep } from './description.js';
 import { renderAudioStep } from './audio.js';
 import { renderReviewStep } from './review.js';
+import { getToken } from '../../services/authStore.js';
+import { getTransaction } from '../../services/n8n.js';
 
 const TOTAL_STEPS = 4;
 
@@ -31,11 +32,11 @@ function formatTransactionMeta(dateStr, cardholderName) {
 }
 
 export function renderAssignment(container, params) {
-  const transactionId = params.get('txn') || MOCK_TRANSACTION.transactionId;
+  const transactionId = params.get('txn');
 
   const state = {
     transactionId,
-    transaction: MOCK_TRANSACTION,
+    transaction: null,
     step: 1,
     jobId: null,
     jobDescription: null,
@@ -50,6 +51,15 @@ export function renderAssignment(container, params) {
   }
 
   function draw() {
+    if (!state.transaction) {
+      container.innerHTML = `
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+          <span class="text-secondary" style="font-size: var(--text-sm);">Loading transaction…</span>
+        </div>
+      `;
+      return;
+    }
+
     container.innerHTML = `
       <div class="transaction-card" style="margin-top: var(--space-lg);">
         <div class="transaction-merchant">${state.transaction.merchant}</div>
@@ -78,5 +88,30 @@ export function renderAssignment(container, params) {
     }
   }
 
-  draw();
+  function renderLoadError(message) {
+    container.innerHTML = `
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-md); text-align: center; padding: var(--space-lg);">
+        <span style="color: var(--color-danger); font-size: var(--text-sm);">${message}</span>
+        <button id="retry-txn" class="btn-secondary" style="width: auto; padding: 0 var(--space-lg);">Try Again</button>
+      </div>
+    `;
+    container.querySelector('#retry-txn').addEventListener('click', loadTransaction);
+  }
+
+  async function loadTransaction() {
+    draw();
+    if (!transactionId) {
+      renderLoadError('No transaction was specified. Open this screen from a purchase notification.');
+      return;
+    }
+    try {
+      const idToken = await getToken();
+      state.transaction = await getTransaction(idToken, transactionId);
+      draw();
+    } catch (err) {
+      renderLoadError(err.message || 'Could not load this transaction. Please try again.');
+    }
+  }
+
+  loadTransaction();
 }
