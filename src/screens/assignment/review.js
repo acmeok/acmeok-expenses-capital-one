@@ -1,6 +1,8 @@
 import { icon } from '../../components/icon.js';
 import { navigate } from '../../router.js';
 import { setLastSubmission } from '../../utils/submissionStore.js';
+import { getToken } from '../../services/authStore.js';
+import { submitExpense } from '../../services/n8n.js';
 
 function summaryRow(label, value) {
   return `
@@ -9,6 +11,15 @@ function summaryRow(label, value) {
       <span style="font-size: var(--text-sm); font-weight: 600; text-align: right;">${value}</span>
     </div>
   `;
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 export function renderReviewStep(container, state, { goToStep }) {
@@ -29,6 +40,8 @@ export function renderReviewStep(container, state, { goToStep }) {
           ${icon('play', { size: 14 })} <span style="font-size: var(--text-sm);">Play</span>
         </button>
       </div>
+
+      <div id="submit-error" style="display: none;"></div>
     </div>
 
     <div class="bottom-action">
@@ -60,20 +73,52 @@ export function renderReviewStep(container, state, { goToStep }) {
     playbackBtn.querySelector('span').textContent = isPlaying ? 'Playing' : 'Play';
   });
 
+  const errorEl = container.querySelector('#submit-error');
+  function showError(message) {
+    errorEl.style.display = 'block';
+    errorEl.innerHTML = `
+      <div class="glass-card" style="display: flex; align-items: flex-start; gap: var(--space-sm); padding: var(--space-md); border-color: rgba(239,68,68,0.35);">
+        <span style="flex-shrink: 0; margin-top: 2px; color: var(--color-danger);">${icon('alertCircle', { size: 18 })}</span>
+        <span style="font-size: var(--text-sm);">${message}</span>
+      </div>
+    `;
+  }
+
   const submitBtn = container.querySelector('#review-submit');
-  submitBtn.addEventListener('click', () => {
+  submitBtn.addEventListener('click', async () => {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting…';
+    errorEl.style.display = 'none';
 
-    setLastSubmission({
-      merchant: state.transaction.merchant,
-      amount: state.transaction.amount,
-      jobId: state.jobId,
-      jobDescription: state.jobDescription,
-      description: state.description,
-    });
+    try {
+      const audioBase64 = await blobToBase64(state.audioBlob);
+      const idToken = await getToken();
 
-    // Real n8n /webhook/expense-submit call happens in a later step.
-    setTimeout(() => navigate('/success'), 800);
+      await submitExpense(idToken, {
+        transactionId: state.transaction.transactionId,
+        transactionDate: state.transaction.date,
+        merchant: state.transaction.merchant,
+        amount: state.transaction.amount,
+        jobId: state.jobId,
+        jobDescription: state.jobDescription,
+        description: state.description,
+        audioBase64,
+        audioMimeType: state.audioMimeType || 'audio/webm',
+      });
+
+      setLastSubmission({
+        merchant: state.transaction.merchant,
+        amount: state.transaction.amount,
+        jobId: state.jobId,
+        jobDescription: state.jobDescription,
+        description: state.description,
+      });
+
+      navigate('/success');
+    } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+      showError(err.message || 'Could not submit this expense. Please try again.');
+    }
   });
 }

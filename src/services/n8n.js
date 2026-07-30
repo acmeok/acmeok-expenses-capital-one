@@ -60,4 +60,8 @@ export function getJobs(idToken) {
   return callWebhook('/webhook/expense-get-jobs', { idToken });
 }
 
+export function submitExpense(idToken, payload) {
+  return callWebhook('/webhook/expense-submit', { method: 'POST', idToken, body: payload });
+}
+
 export { callWebhook, ApiError };
