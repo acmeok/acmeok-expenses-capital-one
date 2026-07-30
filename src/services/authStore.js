@@ -74,9 +74,17 @@ async function registerForPushNotifications(profile) {
 
     const idToken = await auth.currentUser.getIdToken();
     await saveFcmToken(idToken, { name: profile.name, fcmToken });
-    localStorage.setItem(FCM_TOKEN_CACHE_KEY, fcmToken);
+    // The save already succeeded on the server at this point, so a
+    // failure writing the local cache (e.g. storage blocked/full) is not
+    // worth reporting as a setup error.
+    try {
+      localStorage.setItem(FCM_TOKEN_CACHE_KEY, fcmToken);
+    } catch (err) {
+      // ignore, this is just an optimization to skip resaving unchanged tokens
+    }
     setState({ fcmStatus: 'granted' });
   } catch (err) {
+    console.error('Push notification setup failed:', err);
     const known = ['denied', 'unsupported'].includes(err.message);
     setState({ fcmStatus: known ? err.message : 'error' });
   }

@@ -45,7 +45,13 @@ export async function requestFcmToken() {
     throw new Error('denied');
   }
 
-  const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  /* register() can resolve while the worker is still installing, not yet
+     active. Passing that registration to getToken() fails on the very
+     first permission grant (it works after a reload only because the
+     worker is already active by then). Waiting for .ready guarantees an
+     active worker on the first attempt too. */
+  await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  const registration = await navigator.serviceWorker.ready;
 
   return getToken(messaging, {
     vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,

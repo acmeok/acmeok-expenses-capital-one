@@ -44,13 +44,27 @@ export function renderHome(container) {
   container.innerHTML = `
     <div style="display:flex; align-items:center; justify-content:space-between; padding: var(--space-lg) 0 var(--space-md);">
       <h1 style="font-size: var(--text-xl);">Acme Expenses</h1>
-      <button id="signout-btn" style="
-        width:44px; height:44px; border-radius:50%;
-        background: var(--color-bg-surface); border: 1px solid var(--color-border);
-        color: var(--color-text-primary); font-family: var(--font-display); font-weight:700;
-        display:flex; align-items:center; justify-content:center; cursor:pointer;
-        font-size: var(--text-sm);
-      " aria-label="Sign out">${initials}</button>
+      <div style="position:relative;">
+        <button id="profile-btn" aria-haspopup="true" aria-expanded="false" style="
+          width:44px; height:44px; border-radius:50%;
+          background: var(--color-bg-surface); border: 1px solid var(--color-border);
+          color: var(--color-text-primary); font-family: var(--font-display); font-weight:700;
+          display:flex; align-items:center; justify-content:center; cursor:pointer;
+          font-size: var(--text-sm);
+        " aria-label="Account menu">${initials}</button>
+        <div id="profile-menu" class="glass-card" style="
+          display:none; position:absolute; top:52px; right:0; min-width:170px;
+          padding: var(--space-xs); z-index:20;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        ">
+          <button id="signout-btn" style="
+            width:100%; display:flex; align-items:center; gap: var(--space-sm);
+            min-height:44px; padding: 0 var(--space-md);
+            background:none; border:none; border-radius:8px; cursor:pointer;
+            color: var(--color-text-primary); font-size: var(--text-sm); text-align:left;
+          ">${icon('logOut', { size: 18 })} Log out</button>
+        </div>
+      </div>
     </div>
 
     <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-md);">
@@ -66,7 +80,25 @@ export function renderHome(container) {
     </div>
   `;
 
+  const profileBtn = container.querySelector('#profile-btn');
+  const profileMenu = container.querySelector('#profile-menu');
+
+  function closeProfileMenu() {
+    profileMenu.style.display = 'none';
+    profileBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  profileBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = profileMenu.style.display === 'block';
+    profileMenu.style.display = isOpen ? 'none' : 'block';
+    profileBtn.setAttribute('aria-expanded', String(!isOpen));
+  });
+
+  document.addEventListener('click', closeProfileMenu);
+
   container.querySelector('#signout-btn').addEventListener('click', () => {
+    closeProfileMenu();
     signOutUser();
   });
 
@@ -123,5 +155,8 @@ export function renderHome(container) {
 
   loadHistory();
 
-  return unsubscribe;
+  return () => {
+    unsubscribe();
+    document.removeEventListener('click', closeProfileMenu);
+  };
 }
